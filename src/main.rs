@@ -6,17 +6,26 @@ use axum::{
     AddExtensionLayer, Router,
 };
 use dotenv::dotenv;
-use routes::schema_editing::create_table_form::create_table_form;
+use routes::schema::schema_editing::create_table_form::create_table_form;
 use serde_json::{json, Value};
-use sqlx::postgres::PgPoolOptions;
-use sqlx::PgPool;
+use sqlx::{postgres::PgPoolOptions, Column, Decode, Row};
+use sqlx::{PgPool, Postgres};
 use std::env;
 use std::net::SocketAddr;
+
+use crate::{
+    services::schema_info::{
+        fkey_info::get_all_foreign_keys, pkey_info::special_column_info_pkeys,
+        special_column_info::special_column_info, table_info::get_table_info,
+    },
+    types::arbitrary_sql_row::ArbitrarySqlRow,
+};
 
 mod db_utils;
 mod err_utils;
 mod routes;
 mod services;
+mod types;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -43,6 +52,19 @@ async fn main() -> anyhow::Result<()> {
         .fetch_one(&db_pool)
         .await?;
     assert_eq!(row.0, 150);
+
+    let _ = dbg!(special_column_info(&db_pool).await);
+
+    println!(
+        "{}",
+        serde_json::to_string(
+            &sqlx::query_as::<Postgres, ArbitrarySqlRow>(
+                "select (10 +10)::text as first, (2*2)::text as second"
+            )
+            .fetch_one(&db_pool)
+            .await?
+        )?
+    );
 
     let app = Router::new()
         .route("/", get(endpoint_test))

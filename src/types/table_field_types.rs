@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(tag = "type", content = "content")]
 pub enum TableFieldType {
     Integer,
@@ -13,7 +13,7 @@ pub enum TableFieldType {
     CustomType(String),
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum DefaultValue {
     None,
     Value(String),
@@ -28,7 +28,7 @@ impl DefaultValue {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TableField {
     pub name: String,
     pub field_type: TableFieldType,
@@ -38,6 +38,12 @@ pub struct TableField {
 
 impl TableFieldType {
     pub fn to_postgres_type(&self) -> String {
+        match self {
+            &Self::ForeignKey(ref str) => return format!("INT REFERENCES {}(id)", str),
+            &Self::CustomType(ref str) => return str.clone(),
+            _ => {}
+        };
+
         String::from(match self {
             &Self::Integer => "int",
             &Self::Serial => "serial",
@@ -45,8 +51,8 @@ impl TableFieldType {
             &Self::String => "varchar(255)",
             &Self::Text => "text",
             &Self::Date => "date",
-            &Self::ForeignKey(ref str) => str,
-            &Self::CustomType(ref str) => str,
+            &Self::ForeignKey(_) => unreachable!(),
+            &Self::CustomType(_) => unreachable!(),
         })
     }
 }

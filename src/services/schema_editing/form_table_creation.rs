@@ -1,4 +1,4 @@
-use crate::routes::schema_editing::table_field_types::TableField;
+use crate::types::table_field_types::TableField;
 use sqlx::postgres::PgPool;
 
 fn build_field_lines(fields: &Vec<TableField>) -> Vec<String> {

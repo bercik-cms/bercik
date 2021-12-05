@@ -2,9 +2,9 @@ use axum::extract::{Extension, Json};
 use hyper::StatusCode;
 use sqlx::PgPool;
 
-use super::table_field_types::TableField;
 use crate::err_utils::to_internal;
 use crate::services::schema_editing::form_table_creation::create_table_from_form;
+use crate::types::table_field_types::TableField;
 
 use serde::Deserialize;
 
