@@ -15,8 +15,10 @@ use std::net::SocketAddr;
 
 use crate::{
     services::schema_info::{
-        fkey_info::get_all_foreign_keys, pkey_info::special_column_info_pkeys,
-        special_column_info::special_column_info, table_info::get_table_info,
+        fkey_info::get_all_foreign_keys,
+        pkey_info::special_column_info_pkeys,
+        special_column_info::special_column_info,
+        table_info::{self, get_table_info},
     },
     types::arbitrary_sql_row::ArbitrarySqlRow,
 };
@@ -54,6 +56,7 @@ async fn main() -> anyhow::Result<()> {
     assert_eq!(row.0, 150);
 
     let _ = dbg!(special_column_info(&db_pool).await);
+    let _ = dbg!(get_table_info(&db_pool).await);
 
     println!(
         "{}",
@@ -72,6 +75,10 @@ async fn main() -> anyhow::Result<()> {
         .route("/json_test", get(json_value))
         .route("/json_test_test", get(test_json_val))
         .route("/api/create-table", post(create_table_form))
+        .route(
+            "/api/table-info",
+            get(crate::routes::schema::schema_info::table_info::get_table_info),
+        )
         .layer(AddExtensionLayer::new(db_pool));
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 8080));

@@ -1,7 +1,6 @@
-use crate::services::schema_info::fkey_info::get_foreign_keys_of_table;
-use crate::types::intermediate_column_info::ForeignKeyMap;
-use crate::types::table_field_types::TableField;
-use crate::types::table_info::ForeignKeyInfo;
+use crate::services::schema_info::special_column_info::special_column_info;
+use crate::types::column_info::ColumnInfo;
+use crate::types::column_info::ForeignKeyMap;
 use crate::types::table_info::TableInfo;
 use anyhow::Context;
 use anyhow::Result;
@@ -33,13 +32,7 @@ pub async fn get_table_names(db_pool: &PgPool) -> Result<Vec<String>> {
         .collect())
 }
 
-pub async fn get_table_fields<'a>(
-    db_pool: &PgPool,
-    table_name: &str,
-    foreign_key_map: &ForeignKeyMap<'a>,
-) -> Result<Vec<TableField>> {
-    use crate::types::intermediate_column_info::IntermediateColumnInfo;
-
+pub async fn get_table_columns<'a>(db_pool: &PgPool, table_name: &str) -> Result<Vec<ColumnInfo>> {
     let query = r#"
     SELECT column_name as name, data_type, is_nullable::bool, coalesce(column_default, '') as column_default
         FROM information_schema.columns
@@ -47,38 +40,28 @@ pub async fn get_table_fields<'a>(
         AND table_name = $1;
     "#;
 
-    Ok(sqlx::query_as::<Postgres, IntermediateColumnInfo>(query)
+    Ok(sqlx::query_as::<Postgres, ColumnInfo>(query)
         .bind(table_name)
         .fetch_all(db_pool)
-        .await?
-        .into_iter()
-        .map(|x| x.to_table_field(table_name, foreign_key_map))
-        .collect::<Vec<_>>())
+        .await?)
 }
 
 pub async fn get_table_info(db_pool: &PgPool) -> Result<Vec<TableInfo>> {
     let mut result = Vec::new();
 
     let table_names = get_table_names(db_pool).await.context("get_table_names")?;
-    let foreign_keys = get_all_foreign_keys(db_pool)
-        .await
-        .context("get_all_foreign_keys")?;
-    let outbound_foreign_keys = foreign_key_map(&foreign_keys);
+    let special_column_info = special_column_info(db_pool).await?;
 
-    for table_name in &table_names {
-        let table_fields = get_table_fields(db_pool, &table_name, &outbound_foreign_keys)
-            .await
-            .context("get_table_fields")?;
-
+    for table_name in table_names {
+        let columns = get_table_columns(db_pool, &table_name).await?;
         result.push(TableInfo {
-            table_name: table_name.clone(),
-            fields: table_fields,
-            external_references: foreign_keys
-                .iter()
-                .filter(|x| &x.target_column == table_name)
-                .cloned()
-                .collect(),
-        });
+            columns,
+            external_references: special_column_info
+                .get_external_refs(&table_name)
+                .unwrap_or(&vec![])
+                .to_vec(),
+            table_name,
+        })
     }
 
     Ok(result)

@@ -1,4 +1,7 @@
-use super::table_field_types::TableField;
+use super::{
+    column_info::ColumnInfo, special_column_info::ExternalReferenceInfo,
+    table_field_types::TableField,
+};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
@@ -13,6 +16,6 @@ pub struct ForeignKeyInfo {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TableInfo {
     pub table_name: String,
-    pub fields: Vec<TableField>,
-    pub external_references: Vec<ForeignKeyInfo>,
+    pub columns: Vec<ColumnInfo>,
+    pub external_references: Vec<ExternalReferenceInfo>,
 }
