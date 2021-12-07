@@ -56,7 +56,10 @@ async fn main() -> anyhow::Result<()> {
     assert_eq!(row.0, 150);
 
     let _ = dbg!(special_column_info(&db_pool).await);
-    let _ = dbg!(get_table_info(&db_pool).await);
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&get_table_info(&db_pool).await?)?
+    );
 
     println!(
         "{}",
@@ -78,6 +81,10 @@ async fn main() -> anyhow::Result<()> {
         .route(
             "/api/table-info",
             get(crate::routes::schema::schema_info::table_info::get_table_info),
+        )
+        .route(
+            "/api/insert-data",
+            post(crate::routes::data_management::insert_data::insert_data),
         )
         .layer(AddExtensionLayer::new(db_pool));
 

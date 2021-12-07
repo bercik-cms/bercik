@@ -1,6 +1,9 @@
 use crate::services::schema_info::special_column_info::special_column_info;
 use crate::types::column_info::ColumnInfo;
+use crate::types::column_info::ColumnInfoWithSpecial;
 use crate::types::column_info::ForeignKeyMap;
+use crate::types::special_column_info::SpecialColumnMap;
+use crate::types::special_column_info::SpecialColumnMapKey;
 use crate::types::table_info::TableInfo;
 use anyhow::Context;
 use anyhow::Result;
@@ -46,6 +49,29 @@ pub async fn get_table_columns<'a>(db_pool: &PgPool, table_name: &str) -> Result
         .await?)
 }
 
+pub async fn get_table_columns_with_special(
+    db_pool: &PgPool,
+    table_name: &str,
+    special_info: &SpecialColumnMap,
+) -> Result<Vec<ColumnInfoWithSpecial>> {
+    let columns = get_table_columns(db_pool, table_name).await?;
+    let mut result = Vec::new();
+
+    for column in columns {
+        let column_name = column.name.to_string();
+        let table_name = table_name.to_string();
+        let with_special = column.with_special(special_info.get_column_special_info_type(
+            &SpecialColumnMapKey {
+                table_name,
+                column_name,
+            },
+        ));
+        result.push(with_special);
+    }
+
+    Ok(result)
+}
+
 pub async fn get_table_info(db_pool: &PgPool) -> Result<Vec<TableInfo>> {
     let mut result = Vec::new();
 
@@ -53,7 +79,9 @@ pub async fn get_table_info(db_pool: &PgPool) -> Result<Vec<TableInfo>> {
     let special_column_info = special_column_info(db_pool).await?;
 
     for table_name in table_names {
-        let columns = get_table_columns(db_pool, &table_name).await?;
+        let columns =
+            get_table_columns_with_special(db_pool, &table_name, &special_column_info).await?;
+
         result.push(TableInfo {
             columns,
             external_references: special_column_info

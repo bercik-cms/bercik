@@ -3,6 +3,7 @@ use sqlx::FromRow;
 use std::collections::HashMap;
 
 use super::{
+    special_column_info::SpecialColumnType,
     table_field_types::{DefaultValue, TableField, TableFieldType},
     table_info::ForeignKeyInfo,
 };
@@ -17,8 +18,17 @@ pub struct ColumnInfo {
     pub column_default: String,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ColumnInfoWithSpecial {
+    pub name: String,
+    pub data_type: String,
+    pub is_nullable: bool,
+    pub column_default: String,
+    pub special_info: Option<SpecialColumnType>,
+}
+
 impl ColumnInfo {
-    fn get_table_field_type(
+    pub fn get_table_field_type(
         &self,
         table_name: &str,
         foreign_key_map: &ForeignKeyMap,
@@ -37,6 +47,23 @@ impl ColumnInfo {
             ("character varying", _, None) => TableFieldType::String,
             ("text", _, None) => TableFieldType::Text,
             (other, _, _) => TableFieldType::CustomType(other.to_string()),
+        }
+    }
+
+    pub fn with_special(self, special_info: Option<SpecialColumnType>) -> ColumnInfoWithSpecial {
+        let ColumnInfo {
+            name,
+            data_type,
+            is_nullable,
+            column_default,
+        } = self;
+
+        ColumnInfoWithSpecial {
+            name,
+            data_type,
+            is_nullable,
+            column_default,
+            special_info,
         }
     }
 }

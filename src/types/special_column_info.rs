@@ -1,7 +1,9 @@
 use serde::{Deserialize, Serialize};
+use sqlx::Type;
 use std::collections::HashMap;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", content = "content")]
 pub enum SpecialColumnType {
     PrimaryKey,
     ForeignKey {
@@ -57,7 +59,7 @@ impl SpecialColumnInfo {
 }
 
 #[derive(Debug, Hash, PartialEq, Eq)]
-struct SpecialColumnMapKey {
+pub struct SpecialColumnMapKey {
     pub table_name: String,
     pub column_name: String,
 }
@@ -92,6 +94,14 @@ impl SpecialColumnMap {
 
     pub fn get_column_special_info(&self, key: &SpecialColumnMapKey) -> Option<&SpecialColumnInfo> {
         self.map.get(key)
+    }
+
+    pub fn get_column_special_info_type(
+        &self,
+        key: &SpecialColumnMapKey,
+    ) -> Option<SpecialColumnType> {
+        self.get_column_special_info(key)
+            .map(|x| x.special_type.clone())
     }
 
     pub fn get_external_refs(&self, table_name: &str) -> Option<&Vec<ExternalReferenceInfo>> {
