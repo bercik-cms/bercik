@@ -60,6 +60,13 @@ async fn main() -> anyhow::Result<()> {
         "{}",
         serde_json::to_string_pretty(&get_table_info(&db_pool).await?)?
     );
+    println!(
+        "{}",
+        serde_json::to_string_pretty(
+            &crate::services::data_management::get_table_data::get_table_data(&db_pool, "peoples")
+                .await?
+        )?
+    );
 
     println!(
         "{}",

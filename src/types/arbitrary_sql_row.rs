@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::{postgres::PgRow, Column, FromRow, Row};
 use std::collections::HashMap;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ArbitrarySqlRow(HashMap<String, String>);
 
 impl FromRow<'_, PgRow> for ArbitrarySqlRow {
