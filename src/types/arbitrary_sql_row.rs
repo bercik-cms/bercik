@@ -10,7 +10,7 @@ impl FromRow<'_, PgRow> for ArbitrarySqlRow {
         let mut map = HashMap::new();
 
         for i in 0..row.len() {
-            map.insert(row.column(i).name().into(), row.try_get(i)?);
+            map.insert(row.try_column(i)?.name().into(), row.try_get(i)?);
         }
 
         Ok(Self(map))

@@ -14,19 +14,22 @@ use std::env;
 use std::net::SocketAddr;
 
 use crate::{
+    routes::data_management::get_table_data::GetTableDataRequest,
     services::schema_info::{
         fkey_info::get_all_foreign_keys,
         pkey_info::special_column_info_pkeys,
         special_column_info::special_column_info,
         table_info::{self, get_table_info},
     },
-    types::arbitrary_sql_row::ArbitrarySqlRow,
+    types::{arbitrary_sql_array_row::ArbitrarySqlArrayRow, arbitrary_sql_row::ArbitrarySqlRow},
 };
 
+mod algorithms;
 mod db_utils;
 mod err_utils;
 mod routes;
 mod services;
+mod setup;
 mod types;
 
 #[tokio::main]
@@ -55,17 +58,12 @@ async fn main() -> anyhow::Result<()> {
         .await?;
     assert_eq!(row.0, 150);
 
+    setup::setup_internal_tables::init_tables(&db_pool).await?;
+
     let _ = dbg!(special_column_info(&db_pool).await);
     println!(
         "{}",
         serde_json::to_string_pretty(&get_table_info(&db_pool).await?)?
-    );
-    println!(
-        "{}",
-        serde_json::to_string_pretty(
-            &crate::services::data_management::get_table_data::get_table_data(&db_pool, "peoples")
-                .await?
-        )?
     );
 
     println!(
@@ -75,6 +73,26 @@ async fn main() -> anyhow::Result<()> {
                 "select (10 +10)::text as first, (2*2)::text as second"
             )
             .fetch_one(&db_pool)
+            .await?
+        )?
+    );
+
+    use crate::routes::data_management::get_table_data::{
+        GetTableDataRequest, Sorting, WhereClause,
+    };
+
+    println!(
+        "{}",
+        serde_json::to_string_pretty(
+            &crate::services::data_management::get_table_data::get_table_data(
+                &db_pool,
+                &GetTableDataRequest {
+                    table_name: "siemanko".into(),
+                    sorting: Sorting::None,
+                    where_clause: WhereClause::None,
+                    page: None,
+                }
+            )
             .await?
         )?
     );
@@ -92,6 +110,10 @@ async fn main() -> anyhow::Result<()> {
         .route(
             "/api/insert-data",
             post(crate::routes::data_management::insert_data::insert_data),
+        )
+        .route(
+            "/api/get-table-data",
+            post(crate::routes::data_management::get_table_data::get_table_data),
         )
         .layer(AddExtensionLayer::new(db_pool));
 
