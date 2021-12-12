@@ -7,6 +7,8 @@ use crate::algorithms::mermaid_diagram_generation::MermaidDiagram;
 use crate::routes::data_management::sql_editor::{ExecuteQueriesRequest, ExecuteQueriesResponse};
 use crate::types::arbitrary_sql_array_row::ArbitrarySqlArrayRowsAndNames;
 
+mod transaction_table_info;
+
 async fn get_query_diff<'a>(
     transaction: &mut Transaction<'a, Postgres>,
     diff_query: &str,
@@ -16,13 +18,11 @@ async fn get_query_diff<'a>(
     )?)
 }
 
-async fn get_mermaid_diff<'a>(db_pool: &PgPool) -> Result<String> {
-    use crate::services::schema_info::{
-        fkey_info::get_all_foreign_keys, table_info::get_table_info,
-    };
+async fn get_mermaid_diff<'a>(transaction: &mut Transaction<'a, Postgres>) -> Result<String> {
+    use transaction_table_info::{get_all_foreign_keys, get_table_info};
 
-    let table_info = get_table_info(db_pool).await?;
-    let fkey_info = get_all_foreign_keys(db_pool).await?;
+    let table_info = get_table_info(transaction).await?;
+    let fkey_info = get_all_foreign_keys(transaction).await?;
 
     Ok(MermaidDiagram::new(&table_info, &fkey_info)?.0)
 }
@@ -35,11 +35,11 @@ pub async fn execute_queries(
     let mut query_diff: Option<Vec<ArbitrarySqlArrayRowsAndNames>> = None;
     let mut mermaid_diff: Option<Vec<String>> = None;
 
-    if req.should_diff_mermaid {
-        mermaid_diff = Some(vec![get_mermaid_diff(db_pool).await?]);
-    }
-
     let mut transaction = db_pool.begin().await?;
+
+    if req.should_diff_mermaid {
+        mermaid_diff = Some(vec![get_mermaid_diff(&mut transaction).await?]);
+    }
 
     if req.should_diff_query {
         query_diff = Some(vec![
@@ -56,12 +56,12 @@ pub async fn execute_queries(
         qd.push(get_query_diff(&mut transaction, &req.diff_query).await?);
     }
 
-    if req.execute {
-        transaction.commit().await?;
+    if let Some(ref mut md) = mermaid_diff {
+        md.push(get_mermaid_diff(&mut transaction).await?);
     }
 
-    if let Some(ref mut md) = mermaid_diff {
-        md.push(get_mermaid_diff(db_pool).await?);
+    if req.execute {
+        transaction.commit().await?;
     }
 
     Ok(ExecuteQueriesResponse {

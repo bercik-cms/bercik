@@ -24,7 +24,8 @@ pub async fn get_table_names(db_pool: &PgPool) -> Result<Vec<String>> {
         SELECT table_name as name
         FROM information_schema.tables
         WHERE table_type = 'BASE TABLE'
-        AND table_schema NOT IN ('pg_catalog', 'information_schema');
+        AND table_schema NOT IN ('pg_catalog', 'information_schema')
+        AND table_name NOT LIKE '__b_%';
     "#;
 
     Ok(sqlx::query_as::<Postgres, TableName>(query)

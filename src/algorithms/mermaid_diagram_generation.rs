@@ -11,7 +11,11 @@ impl MermaidDiagram {
         for table in tables {
             result.push_str(&format!("{} {{ ", table.table_name));
             for column in &table.columns {
-                result.push_str(&format!("{} {} ", column.data_type, column.name));
+                result.push_str(&format!(
+                    "{} {} ",
+                    column.data_type.replace(" ", "_"),
+                    column.name
+                ));
             }
             result.push_str("} ");
         }
