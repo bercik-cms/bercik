@@ -84,7 +84,7 @@ async fn main() -> anyhow::Result<()> {
     println!(
         "{}",
         serde_json::to_string_pretty(
-            &crate::services::data_management::get_table_data::get_table_data(
+            &services::data_management::get_table_data::get_table_data(
                 &db_pool,
                 &GetTableDataRequest {
                     table_name: "siemanko".into(),
@@ -98,22 +98,22 @@ async fn main() -> anyhow::Result<()> {
     );
 
     let app = Router::new()
-        .route("/", get(endpoint_test))
-        .route("/create", get(create_table))
-        .route("/json_test", get(json_value))
-        .route("/json_test_test", get(test_json_val))
         .route("/api/create-table", post(create_table_form))
         .route(
             "/api/table-info",
-            get(crate::routes::schema::schema_info::table_info::get_table_info),
+            get(routes::schema::schema_info::table_info::get_table_info),
         )
         .route(
             "/api/insert-data",
-            post(crate::routes::data_management::insert_data::insert_data),
+            post(routes::data_management::insert_data::insert_data),
         )
         .route(
             "/api/get-table-data",
-            post(crate::routes::data_management::get_table_data::get_table_data),
+            post(routes::data_management::get_table_data::get_table_data),
+        )
+        .route(
+            "/api/execute-queries",
+            post(routes::data_management::sql_editor::execute_queries),
         )
         .layer(AddExtensionLayer::new(db_pool));
 
@@ -124,36 +124,4 @@ async fn main() -> anyhow::Result<()> {
         .await?;
 
     Ok(())
-}
-
-async fn endpoint_test(Extension(pool): Extension<PgPool>) -> Result<String, (StatusCode, String)> {
-    let row: (i64,) = sqlx::query_as("SELEC $1 + $1")
-        .bind(150_i64)
-        .fetch_one(&pool)
-        .await
-        .map_err(err_utils::to_internal)?;
-
-    Ok(format!("{}", row.0))
-}
-
-async fn create_table(Extension(pool): Extension<PgPool>) -> String {
-    sqlx::query("create table test()")
-        .execute(&pool)
-        .await
-        .unwrap();
-    "Ok".into()
-}
-
-async fn json_value() -> axum::response::Json<Value> {
-    let value = json!({
-        "msg": 2 + 2,
-        "inner": {
-            "msg": "test",
-        }
-    });
-    axum::response::Json(value)
-}
-
-async fn test_json_val() -> axum::response::Json<Value> {
-    return axum::response::Json(json!(["test", "test2", "test3",]));
 }

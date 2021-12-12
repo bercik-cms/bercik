@@ -2,7 +2,7 @@ use anyhow::Result;
 use serde::Serialize;
 use sqlx::{postgres::PgRow, Column, FromRow, Row};
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub struct ArbitrarySqlArrayRowsAndNames {
     pub names: Vec<String>,
     pub rows: Vec<ArbitrarySqlArrayRow>,
