@@ -2,7 +2,7 @@ use anyhow::Context;
 use axum::{
     extract::Extension,
     http::StatusCode,
-    routing::{get, post},
+    routing::{any, get, post},
     AddExtensionLayer, Router,
 };
 use dotenv::dotenv;
@@ -25,6 +25,7 @@ use crate::{
 };
 
 mod algorithms;
+mod auth;
 mod db_utils;
 mod err_utils;
 mod routes;
@@ -98,6 +99,26 @@ async fn main() -> anyhow::Result<()> {
     );
 
     let app = Router::new()
+        .route(
+            "/endpoint/*path",
+            any(routes::custom_endpoints::custom_endpoint),
+        )
+        .route(
+            "/api/create-endpoint",
+            post(routes::custom_endpoints::endpoint_crud::create_endpoint),
+        )
+        .route(
+            "/api/get-endpoints",
+            get(routes::custom_endpoints::endpoint_crud::get_endpoints),
+        )
+        .route(
+            "/api/update-endpoint",
+            post(routes::custom_endpoints::endpoint_crud::update_endpoint),
+        )
+        .route(
+            "/api/delete-endpoint",
+            post(routes::custom_endpoints::endpoint_crud::delete_endpoint),
+        )
         .route("/api/create-table", post(create_table_form))
         .route(
             "/api/table-info",
@@ -114,6 +135,15 @@ async fn main() -> anyhow::Result<()> {
         .route(
             "/api/execute-queries",
             post(routes::data_management::sql_editor::execute_queries),
+        )
+        .route("/api/login", post(auth::login_route::login))
+        .route(
+            "/api/change-password",
+            post(auth::change_password::change_password),
+        )
+        .route(
+            "/api/create-users",
+            post(auth::create_users_route::create_users),
         )
         .layer(AddExtensionLayer::new(db_pool));
 

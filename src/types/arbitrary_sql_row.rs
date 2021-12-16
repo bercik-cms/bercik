@@ -5,6 +5,12 @@ use std::collections::HashMap;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ArbitrarySqlRow(HashMap<String, String>);
 
+impl ArbitrarySqlRow {
+    pub fn into_map(self) -> HashMap<String, String> {
+        self.0
+    }
+}
+
 impl FromRow<'_, PgRow> for ArbitrarySqlRow {
     fn from_row(row: &'_ PgRow) -> Result<Self, sqlx::Error> {
         let mut map = HashMap::new();
