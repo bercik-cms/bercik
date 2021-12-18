@@ -1,4 +1,4 @@
-use crate::routes::custom_endpoints::endpoint_crud::CreateEndpointRequest;
+use crate::routes::custom_endpoints::endpoint_crud::{CreateEndpointRequest, GetEndpointInfo};
 use crate::{
     algorithms::sql_variable_parser::EndpointInfo,
     routes::custom_endpoints::endpoint_crud::CreateEndpointMethod,
@@ -54,17 +54,19 @@ pub async fn create_endpoint(db_pool: &PgPool, req: CreateEndpointRequest) -> Re
     Ok(())
 }
 
-pub async fn get_endpoints(db_pool: &PgPool) -> Result<Vec<CreateEndpointRequest>> {
+pub async fn get_endpoints(db_pool: &PgPool) -> Result<Vec<GetEndpointInfo>> {
     #[derive(FromRow)]
     struct DbReadEndpoint {
+        pub id: i32,
         pub req_path: String,
         pub req_method: String,
         pub handler_info: String,
         pub allowed_groups: String,
     }
 
-    fn to_create_request(db_read: DbReadEndpoint) -> Result<CreateEndpointRequest> {
-        let req = CreateEndpointRequest {
+    fn to_endpoint_info(db_read: DbReadEndpoint) -> Result<GetEndpointInfo> {
+        let req = GetEndpointInfo {
+            id: db_read.id,
             path: db_read.req_path,
             method: CreateEndpointMethod::from_str(&db_read.req_method)?,
             allowed_groups: serde_json::from_str(&db_read.allowed_groups)?,
@@ -78,7 +80,7 @@ pub async fn get_endpoints(db_pool: &PgPool) -> Result<Vec<CreateEndpointRequest
 
     let endpoints = sqlx::query_as::<Postgres, DbReadEndpoint>(
         r#"
-            SELECT req_path, req_method, handler_info, allowed_groups
+            SELECT id::int, req_path, req_method, handler_info, allowed_groups
             FROM __B_endpoints
         "#,
     )
@@ -87,8 +89,8 @@ pub async fn get_endpoints(db_pool: &PgPool) -> Result<Vec<CreateEndpointRequest
 
     Ok(endpoints
         .into_iter()
-        .map(to_create_request)
-        .collect::<Result<Vec<CreateEndpointRequest>>>()?)
+        .map(to_endpoint_info)
+        .collect::<Result<Vec<GetEndpointInfo>>>()?)
 }
 
 pub async fn update_endpoint(

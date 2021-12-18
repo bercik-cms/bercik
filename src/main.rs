@@ -108,6 +108,10 @@ async fn main() -> anyhow::Result<()> {
             post(routes::custom_endpoints::endpoint_crud::create_endpoint),
         )
         .route(
+            "/api/test-endpoint",
+            post(routes::custom_endpoints::endpoint_test::endpoint_test),
+        )
+        .route(
             "/api/get-endpoints",
             get(routes::custom_endpoints::endpoint_crud::get_endpoints),
         )

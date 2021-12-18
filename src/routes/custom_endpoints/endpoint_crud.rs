@@ -43,6 +43,15 @@ pub struct CreateEndpointRequest {
     pub allowed_groups: Vec<String>,
 }
 
+#[derive(Deserialize, Serialize)]
+pub struct GetEndpointInfo {
+    pub id: i32,
+    pub path: String,
+    pub method: CreateEndpointMethod,
+    pub endpoints_info: Vec<EndpointInfoCreateRequest>,
+    pub allowed_groups: Vec<String>,
+}
+
 pub async fn create_endpoint(
     Extension(db_pool): Extension<PgPool>,
     Json(req): Json<CreateEndpointRequest>,
@@ -60,7 +69,7 @@ pub async fn create_endpoint(
 pub async fn get_endpoints(
     Extension(db_pool): Extension<PgPool>,
     claims: Claims,
-) -> Result<Json<Vec<CreateEndpointRequest>>, (StatusCode, String)> {
+) -> Result<Json<Vec<GetEndpointInfo>>, (StatusCode, String)> {
     claims.must_be_admin()?;
     Ok(Json(
         endpoint_services::get_endpoints(&db_pool)

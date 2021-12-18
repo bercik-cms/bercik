@@ -1,4 +1,5 @@
 use super::login_service::login as login_service;
+use super::Claims;
 use crate::err_utils::to_internal;
 use axum::extract::Extension;
 use axum::extract::Json;
@@ -15,6 +16,7 @@ pub struct LoginRequest {
 #[derive(Serialize)]
 pub struct LoginResponse {
     pub token: String,
+    pub claims: Claims,
 }
 
 pub async fn login(

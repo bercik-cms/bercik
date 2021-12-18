@@ -66,5 +66,5 @@ pub async fn login(req: &LoginRequest, db_pool: &PgPool) -> Result<LoginResponse
 
     let token = encode(&Header::default(), &claims, &KEYS.encoding)?;
 
-    Ok(LoginResponse { token })
+    Ok(LoginResponse { token, claims })
 }

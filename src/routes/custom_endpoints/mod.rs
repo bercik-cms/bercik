@@ -1,4 +1,5 @@
 pub mod endpoint_crud;
+pub mod endpoint_test;
 
 use crate::algorithms::endpoint_execution::ExecutionResult;
 use crate::services::endpoints::endpoint_execution::execute_endpoint;

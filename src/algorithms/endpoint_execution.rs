@@ -7,7 +7,7 @@ use serde::Serialize;
 use sqlx::{PgPool, Postgres, Transaction};
 use std::collections::HashMap;
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct ExecutionResult {
     pub data: HashMap<String, String>,
     pub children: HashMap<String, ExecutionResult>,
