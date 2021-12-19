@@ -82,22 +82,6 @@ async fn main() -> anyhow::Result<()> {
         GetTableDataRequest, Sorting, WhereClause,
     };
 
-    println!(
-        "{}",
-        serde_json::to_string_pretty(
-            &services::data_management::get_table_data::get_table_data(
-                &db_pool,
-                &GetTableDataRequest {
-                    table_name: "siemanko".into(),
-                    sorting: Sorting::None,
-                    where_clause: WhereClause::None,
-                    page: None,
-                }
-            )
-            .await?
-        )?
-    );
-
     let app = Router::new()
         .route(
             "/endpoint/*path",

@@ -29,7 +29,7 @@ pub async fn custom_endpoint(
     Extension(db_pool): Extension<PgPool>,
     form_result: Result<Form<HashMap<String, String>>, FormRejection>,
     json_result: Result<Json<HashMap<String, String>>, JsonRejection>,
-) -> Result<Json<HashMap<String, ExecutionResult>>, (StatusCode, String)> {
+) -> Result<Json<HashMap<String, Vec<ExecutionResult>>>, (StatusCode, String)> {
     let arguments = match (form_result, json_result) {
         (Err(form_err), Err(json_err)) => {
             return Err((

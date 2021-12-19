@@ -10,7 +10,7 @@ use std::collections::HashMap;
 #[derive(Serialize, Debug)]
 pub struct ExecutionResult {
     pub data: HashMap<String, String>,
-    pub children: HashMap<String, ExecutionResult>,
+    pub children: HashMap<String, Vec<ExecutionResult>>,
 }
 
 #[derive(Debug)]
@@ -78,8 +78,8 @@ impl EndpointExecutionRuntime {
         &mut self,
         transaction: &mut Transaction<'a, Postgres>,
         endpoint_infos: &Vec<EndpointInfo>,
-    ) -> Result<HashMap<String, ExecutionResult>> {
-        let mut final_results = HashMap::<String, ExecutionResult>::new();
+    ) -> Result<HashMap<String, Vec<ExecutionResult>>> {
+        let mut final_results = HashMap::<String, Vec<ExecutionResult>>::new();
 
         for query in endpoint_infos {
             let mut exec = sqlx::query_as::<Postgres, ArbitrarySqlRow>(&query.parsed_sql);
@@ -94,6 +94,8 @@ impl EndpointExecutionRuntime {
                 .map(|it| it.into_map())
                 .collect::<Vec<_>>();
 
+            dbg!(&results);
+
             for result in results.into_iter() {
                 self.push_execution_map(result);
 
@@ -106,13 +108,23 @@ impl EndpointExecutionRuntime {
                 // delete private fields
                 result_map.retain(|key, _value| key.len() < 8 || &key[0..8] != "private_");
 
-                final_results.insert(
-                    query.name.clone(),
-                    ExecutionResult {
-                        data: result_map,
-                        children: children_results,
-                    },
-                );
+                if final_results.contains_key(&query.name) {
+                    final_results
+                        .get_mut(&query.name)
+                        .unwrap()
+                        .push(ExecutionResult {
+                            data: result_map,
+                            children: children_results,
+                        })
+                } else {
+                    final_results.insert(
+                        query.name.clone(),
+                        vec![ExecutionResult {
+                            data: result_map,
+                            children: children_results,
+                        }],
+                    );
+                }
             }
         }
 

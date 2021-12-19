@@ -10,7 +10,7 @@ pub async fn test_endpoint(
     db_pool: &PgPool,
     execution_info: Vec<EndpointInfo>,
     request_variables: HashMap<String, String>,
-) -> Result<HashMap<String, ExecutionResult>> {
+) -> Result<HashMap<String, Vec<ExecutionResult>>> {
     let mut runtime = EndpointExecutionRuntime::new(request_variables);
 
     let mut transaction = db_pool.begin().await?;
