@@ -1,0 +1,634 @@
+{
+	"info": {
+		"_postman_id": "a4b6381e-4958-4e52-a9ab-21e67ff6853f",
+		"name": "Bercik CMS collection",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Create users",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Correct response\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.new_users.length).to.eql(2);",
+							"",
+							"    pm.expect(jsonData.new_users[0].username.indexOf(\"sekretarka\")).to.eql(0);",
+							"    pm.expect(jsonData.new_users[1].username.indexOf(\"sekretarka\")).to.eql(0);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{adminToken}}",
+						"type": "string"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"username\": \"sekretarka_{}\",\n    \"amount\": 2,\n    \"user_group\": \"PRACOWNICY\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:8080/api/create-users",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"create-users"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create table form",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{adminToken}}",
+						"type": "string"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"table_name\": \"test_table_one\",\n    \"table_fields\": [\n        {\n            \"name\": \"name\",\n            \"field_type\": {\"type\": \"String\"},\n            \"not_null\": true,\n            \"default\": \"None\"\n        },\n        {\n            \"name\": \"age\",\n            \"field_type\": {\"type\": \"Integer\"},\n            \"not_null\": true,\n            \"default\": {\"Value\": \"18\"}\n        }\n    ]\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:8080/api/create-table",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"create-table"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get table info",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"const expectedResponse = [",
+							"    {",
+							"        \"table_name\": \"test_table_one\",",
+							"        \"columns\": [",
+							"            {",
+							"                \"name\": \"id\",",
+							"                \"data_type\": \"integer\",",
+							"                \"is_nullable\": false,",
+							"                \"column_default\": \"nextval('test_table_one_id_seq'::regclass)\",",
+							"                \"special_info\": {",
+							"                    \"type\": \"PrimaryKey\"",
+							"                }",
+							"            },",
+							"            {",
+							"                \"name\": \"name\",",
+							"                \"data_type\": \"character varying\",",
+							"                \"is_nullable\": false,",
+							"                \"column_default\": \"\",",
+							"                \"special_info\": null",
+							"            },",
+							"            {",
+							"                \"name\": \"age\",",
+							"                \"data_type\": \"integer\",",
+							"                \"is_nullable\": false,",
+							"                \"column_default\": \"18\",",
+							"                \"special_info\": null",
+							"            }",
+							"        ],",
+							"        \"external_references\": []",
+							"    }",
+							"];",
+							"",
+							"pm.test(\"Body is correct\", function () {",
+							"    pm.response.to.have.body(JSON.stringify(expectedResponse));",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{adminToken}}",
+						"type": "string"
+					}
+				],
+				"url": {
+					"raw": "localhost:8080/api/table-info",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"table-info"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Insert data",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{adminToken}}",
+						"type": "string"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"table_name\": \"test_table_one\",\n    \"values\": [\n        {\n            \"value\": \"\",\n            \"use_default\": true,\n            \"use_null\": false\n        },\n        {\n            \"value\": \"Jan Kowalski\",\n            \"use_default\": false,\n            \"use_null\": false\n        },\n        {\n            \"value\": \"60\",\n            \"use_default\": false,\n            \"use_null\": false\n        }\n    ]\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:8080/api/insert-data",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"insert-data"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get data",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"const expectedResponse = {",
+							"    \"names\": [",
+							"        \"id\",",
+							"        \"name\",",
+							"        \"age\"",
+							"    ],",
+							"    \"rows\": [",
+							"        [",
+							"            \"1\",",
+							"            \"Jan Kowalski\",",
+							"            \"60\"",
+							"        ]",
+							"    ]",
+							"};",
+							"",
+							"pm.test(\"Body is correct\", function () {",
+							"    pm.response.to.have.body(JSON.stringify(expectedResponse));",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{adminToken}}",
+						"type": "string"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"table_name\": \"test_table_one\",\n    \"where_clause\": {\"type\": \"None\"},\n    \"sorting\": {\"type\": \"None\"},\n    \"page\": null\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:8080/api/get-table-data",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"get-table-data"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Execute query",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"const expectedResponse = {",
+							"    \"query_results\": [",
+							"        {",
+							"            \"names\": [",
+							"                \"name\",",
+							"                \"age\"",
+							"            ],",
+							"            \"rows\": [",
+							"                [",
+							"                    \"Adam Nowak\",",
+							"                    \"42\"",
+							"                ]",
+							"            ]",
+							"        }",
+							"    ],",
+							"    \"query_diff\": [",
+							"        {",
+							"            \"names\": [",
+							"                \"name\"",
+							"            ],",
+							"            \"rows\": [",
+							"                [",
+							"                    \"Jan Kowalski\"",
+							"                ]",
+							"            ]",
+							"        },",
+							"        {",
+							"            \"names\": [",
+							"                \"name\"",
+							"            ],",
+							"            \"rows\": [",
+							"                [",
+							"                    \"Jan Kowalski\"",
+							"                ],",
+							"                [",
+							"                    \"Adam Nowak\"",
+							"                ]",
+							"            ]",
+							"        }",
+							"    ],",
+							"    \"mermaid_diff\": null",
+							"};",
+							"",
+							"pm.test(\"Body is correct\", function () {",
+							"    pm.response.to.have.body(JSON.stringify(expectedResponse));",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{adminToken}}",
+						"type": "string"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"queries\": [\"insert into test_table_one (name, age) values ('Adam Nowak', 42) returning name, age::text\"],\n    \"diff_query\": \"select name from test_table_one\",\n    \"should_diff_query\": true,\n    \"should_diff_mermaid\": false,\n    \"execute\": false\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:8080/api/execute-queries",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"execute-queries"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Test endpoint",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test(\"Endpoint data is correct\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.ok).to.eql(true);",
+							"    ",
+							"    let message = JSON.parse(jsonData.msg);",
+							"    pm.expect(message.top_level[0].data.age).to.eql(\"60\");",
+							"    pm.expect(message.top_level[0].children.child[0].data.greeting_message).to.eql(\"Witaj, Jan Kowalski!\");",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{adminToken}}",
+						"type": "string"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"create_req\": {\n        \"path\": \"/test-endpoint\",\n        \"method\": \"ANY\",\n        \"endpoints_info\": [\n            {\n                \"name\": \"top_level\",\n                \"sql\": \"select id::text, name, age::text from test_table_one\",\n                \"children\": [\n                    {\n                        \"name\": \"child\",\n                        \"sql\": \"select ${req.greeting} || ', ' || ${super.name} || '!' as greeting_message\",\n                        \"children\": []\n                    }\n                ]\n            }\n        ],\n        \"allowed_groups\": [\"PUBLIC\"]\n    },\n    \"req_variables\": {\n        \"greeting\": \"Witaj\"\n    }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:8080/api/test-endpoint",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"test-endpoint"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create endpoint",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{adminToken}}",
+						"type": "string"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"path\": \"/test-endpoint\",\n    \"method\": \"ANY\",\n    \"endpoints_info\": [\n        {\n            \"name\": \"message_query\",\n            \"sql\": \"select 'ok' as message\",\n            \"children\": []\n        }\n    ],\n    \"allowed_groups\": [\"PUBLIC\"]\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:8080/api/create-endpoint",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"create-endpoint"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Call endpoint",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Endpoint data is correct\", function () {",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData.message_query[0].data.message).to.eql(\"ok\");",
+							"});",
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "localhost:8080/endpoint/test-endpoint",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"endpoint",
+						"test-endpoint"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get endpoints",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"const expectedResponse = [",
+							"    {",
+							"        \"id\": 1,",
+							"        \"path\": \"/test-endpoint\",",
+							"        \"method\": \"ANY\",",
+							"        \"endpoints_info\": [",
+							"            {",
+							"                \"name\": \"message_query\",",
+							"                \"sql\": \"select 'ok' as message\",",
+							"                \"children\": []",
+							"            }",
+							"        ],",
+							"        \"allowed_groups\": [",
+							"            \"PUBLIC\"",
+							"        ]",
+							"    }",
+							"];",
+							"",
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"pm.test(\"Body is correct\", function () {",
+							"    pm.response.to.have.body(JSON.stringify(expectedResponse));",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{adminToken}}",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"path\": \"/siemanko\",\n    \"method\": \"GET\",\n    \"endpoints_info\": [\n        {\n            \"name\": \"addition\",\n            \"sql\": \"select (2+2)::text as addition\",\n            \"children\": []\n        }\n    ],\n    \"allowed_groups\": [\"public\"]\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "localhost:8080/api/get-endpoints",
+					"host": [
+						"localhost"
+					],
+					"port": "8080",
+					"path": [
+						"api",
+						"get-endpoints"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"const body = {",
+					"    \"username\": \"admin\",",
+					"    \"password\": \"admin1\"",
+					"};",
+					"",
+					"pm.sendRequest({",
+					"        url: \"localhost:8080/api/login\",",
+					"        body: JSON.stringify(body),",
+					"        method: \"POST\",",
+					"        header: {\"content-type\": \"application/json\"} ",
+					"    }, function (err, response) {",
+					"    console.log(response.json());",
+					"",
+					"    pm.globals.set(\"adminToken\", response.json()[\"token\"]);",
+					"});",
+					"",
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	]
+}
