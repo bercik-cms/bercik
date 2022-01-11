@@ -3,8 +3,9 @@ use crate::{
 };
 use anyhow::{anyhow, Result};
 use async_recursion::async_recursion;
+use axum::async_trait;
 use serde::Serialize;
-use sqlx::{PgPool, Postgres, Transaction};
+use sqlx::{postgres::PgArguments, query::QueryAs, PgPool, Postgres, Transaction};
 use std::collections::HashMap;
 
 #[derive(Serialize, Debug)]
@@ -73,8 +74,20 @@ impl EndpointExecutionRuntime {
         }
     }
 
-    #[async_recursion]
     pub async fn execute<'a>(
+        &mut self,
+        transaction: &mut Transaction<'a, Postgres>,
+        endpoint_infos: &Vec<EndpointInfo>,
+    ) -> Result<HashMap<String, Vec<ExecutionResult>>> {
+        self.execute_impl::<Transaction<'a, Postgres>, QueryAs<Postgres, ArbitrarySqlRow, PgArguments>>(
+            transaction,
+            endpoint_infos,
+        )
+        .await
+    }
+
+    #[async_recursion]
+    async fn execute_impl<'a, Acceptor, QBuilder: QueryBuider<'a, Acceptor>>(
         &mut self,
         transaction: &mut Transaction<'a, Postgres>,
         endpoint_infos: &Vec<EndpointInfo>,
@@ -94,12 +107,12 @@ impl EndpointExecutionRuntime {
                 .map(|it| it.into_map())
                 .collect::<Vec<_>>();
 
-            dbg!(&results);
-
             for result in results.into_iter() {
                 self.push_execution_map(result);
 
-                let children_results = self.execute(transaction, &query.children).await?;
+                let children_results = self
+                    .execute_impl::<Acceptor, QBuilder>(transaction, &query.children)
+                    .await?;
 
                 let mut result_map = self
                     .pop_execution_map()
@@ -129,5 +142,32 @@ impl EndpointExecutionRuntime {
         }
 
         Ok(final_results)
+    }
+}
+
+#[async_trait]
+trait QueryBuider<'a, Acceptor> {
+    fn with_sql(sql: &'a str) -> Self;
+    fn bind(self, value: &'a str) -> Self;
+    async fn execute(self, acceptor: &mut Acceptor) -> Result<Vec<ArbitrarySqlRow>>;
+}
+
+#[async_trait]
+impl<'a> QueryBuider<'a, Transaction<'a, Postgres>>
+    for QueryAs<'a, Postgres, ArbitrarySqlRow, PgArguments>
+{
+    fn with_sql(sql: &'a str) -> Self {
+        sqlx::query_as::<Postgres, ArbitrarySqlRow>(sql)
+    }
+
+    fn bind(self, value: &'a str) -> Self {
+        self.bind(value)
+    }
+
+    async fn execute(
+        self,
+        acceptor: &mut Transaction<'a, Postgres>,
+    ) -> Result<Vec<ArbitrarySqlRow>> {
+        self.fetch_all(acceptor).await.map_err(|it| anyhow!(it))
     }
 }
