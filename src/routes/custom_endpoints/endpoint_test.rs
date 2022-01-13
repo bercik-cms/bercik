@@ -11,6 +11,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 
+#[cfg(not(test))]
 use crate::services::endpoints::endpoint_test::test_endpoint as test_endpoint_service;
 
 #[derive(Serialize)]
@@ -25,6 +26,7 @@ pub struct EndpointTestRequest {
     pub req_variables: HashMap<String, String>,
 }
 
+#[cfg(not(test))]
 pub async fn endpoint_test(
     Json(req): Json<super::endpoint_test::EndpointTestRequest>,
     Extension(db_pool): Extension<PgPool>,

@@ -33,6 +33,7 @@ mod services;
 mod setup;
 mod types;
 
+#[cfg(not(test))]
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenv()?;

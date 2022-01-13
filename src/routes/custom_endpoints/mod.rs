@@ -2,6 +2,7 @@ pub mod endpoint_crud;
 pub mod endpoint_test;
 
 use crate::algorithms::endpoint_execution::ExecutionResult;
+#[cfg(not(test))]
 use crate::services::endpoints::endpoint_execution::execute_endpoint;
 use crate::{algorithms::sql_variable_parser::EndpointInfo, err_utils::to_internal};
 use axum::{
@@ -24,6 +25,7 @@ pub struct EndpointExecutionInfo {
     pub allowed_groups: String,
 }
 
+#[cfg(not(test))]
 pub async fn custom_endpoint(
     path: Path<String>,
     Extension(db_pool): Extension<PgPool>,

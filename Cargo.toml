@@ -27,3 +27,4 @@ rand_core = { version = "0.6", features = ["std"] }
 passwords = "3"
 chrono = "*"
 async-recursion = "0.3.2"
+maplit = "*"

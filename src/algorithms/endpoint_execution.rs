@@ -3,12 +3,11 @@ use crate::{
 };
 use anyhow::{anyhow, Result};
 use async_recursion::async_recursion;
-use axum::async_trait;
 use serde::Serialize;
-use sqlx::{postgres::PgArguments, query::QueryAs, PgPool, Postgres, Transaction};
+use sqlx::{Postgres, Transaction};
 use std::collections::HashMap;
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, PartialEq)]
 pub struct ExecutionResult {
     pub data: HashMap<String, String>,
     pub children: HashMap<String, Vec<ExecutionResult>>,
@@ -74,32 +73,35 @@ impl EndpointExecutionRuntime {
         }
     }
 
-    pub async fn execute<'a>(
-        &mut self,
-        transaction: &mut Transaction<'a, Postgres>,
-        endpoint_infos: &Vec<EndpointInfo>,
-    ) -> Result<HashMap<String, Vec<ExecutionResult>>> {
-        self.execute_impl::<Transaction<'a, Postgres>, QueryAs<Postgres, ArbitrarySqlRow, PgArguments>>(
-            transaction,
-            endpoint_infos,
-        )
-        .await
-    }
-
     #[async_recursion]
-    async fn execute_impl<'a, Acceptor, QBuilder: QueryBuider<'a, Acceptor>>(
+    pub async fn execute(
         &mut self,
-        transaction: &mut Transaction<'a, Postgres>,
+        #[cfg(test)] mock_exec_service: &mut ExecutionMockService,
+        #[cfg(not(test))] transaction: &mut Transaction<'_, Postgres>,
         endpoint_infos: &Vec<EndpointInfo>,
     ) -> Result<HashMap<String, Vec<ExecutionResult>>> {
         let mut final_results = HashMap::<String, Vec<ExecutionResult>>::new();
 
         for query in endpoint_infos {
+            #[cfg(not(test))]
             let mut exec = sqlx::query_as::<Postgres, ArbitrarySqlRow>(&query.parsed_sql);
             for var_name in &query.variables {
                 let val = self.get_variable_clone(var_name)?;
-                exec = exec.bind(val);
+
+                #[cfg(not(test))]
+                {
+                    exec = exec.bind(val);
+                }
+                #[cfg(test)]
+                {
+                    mock_exec_service.bind(&val);
+                }
             }
+
+            #[cfg(test)]
+            let results = mock_exec_service.simulate_call(&query.parsed_sql);
+
+            #[cfg(not(test))]
             let results = exec
                 .fetch_all(&mut *transaction)
                 .await?
@@ -110,9 +112,10 @@ impl EndpointExecutionRuntime {
             for result in results.into_iter() {
                 self.push_execution_map(result);
 
-                let children_results = self
-                    .execute_impl::<Acceptor, QBuilder>(transaction, &query.children)
-                    .await?;
+                #[cfg(test)]
+                let children_results = self.execute(mock_exec_service, &query.children).await?;
+                #[cfg(not(test))]
+                let children_results = self.execute(transaction, &query.children).await?;
 
                 let mut result_map = self
                     .pop_execution_map()
@@ -145,29 +148,285 @@ impl EndpointExecutionRuntime {
     }
 }
 
-#[async_trait]
-trait QueryBuider<'a, Acceptor> {
-    fn with_sql(sql: &'a str) -> Self;
-    fn bind(self, value: &'a str) -> Self;
-    async fn execute(self, acceptor: &mut Acceptor) -> Result<Vec<ArbitrarySqlRow>>;
+#[derive(Debug, PartialEq)]
+pub struct ExecutionMockService {
+    pub bound_params: Vec<String>,
+    pub called_queries: Vec<String>,
+    pub result_stack: Vec<Vec<HashMap<String, String>>>,
 }
 
-#[async_trait]
-impl<'a> QueryBuider<'a, Transaction<'a, Postgres>>
-    for QueryAs<'a, Postgres, ArbitrarySqlRow, PgArguments>
-{
-    fn with_sql(sql: &'a str) -> Self {
-        sqlx::query_as::<Postgres, ArbitrarySqlRow>(sql)
+impl ExecutionMockService {
+    pub fn new(result_stack: Vec<Vec<HashMap<String, String>>>) -> Self {
+        Self {
+            result_stack,
+            called_queries: vec![],
+            bound_params: vec![],
+        }
     }
 
-    fn bind(self, value: &'a str) -> Self {
-        self.bind(value)
+    pub fn bind(&mut self, param: impl std::fmt::Display) {
+        self.bound_params.push(format!("{}", param));
     }
 
-    async fn execute(
-        self,
-        acceptor: &mut Transaction<'a, Postgres>,
-    ) -> Result<Vec<ArbitrarySqlRow>> {
-        self.fetch_all(acceptor).await.map_err(|it| anyhow!(it))
+    pub fn simulate_call(&mut self, query: &str) -> Vec<HashMap<String, String>> {
+        self.called_queries.push(query.to_owned());
+        self.result_stack.pop().unwrap()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use maplit::hashmap;
+
+    #[tokio::test]
+    async fn it_works() {
+        let mut mock_service = ExecutionMockService::new(vec![vec![hashmap! {
+           "test".into() => "test".into()
+        }]]);
+
+        let request_variables = hashmap! {};
+
+        let endpoint_infos = vec![EndpointInfo {
+            name: "test".into(),
+            variables: vec![],
+            parsed_sql: "this sql should be executed".into(),
+            original_sql: "".into(),
+            children: vec![],
+        }];
+
+        let mut execution_runtime = EndpointExecutionRuntime::new(request_variables);
+
+        let final_result = execution_runtime
+            .execute(&mut mock_service, &endpoint_infos)
+            .await
+            .unwrap();
+
+        assert_eq!(
+            final_result,
+            hashmap! {"test".into() => vec![ExecutionResult{
+                data: hashmap! {
+                    "test".into() => "test".into(),
+                },
+                children: hashmap! {}
+            }]}
+        );
+
+        assert_eq!(
+            mock_service.called_queries,
+            vec!["this sql should be executed"]
+        );
+        assert_eq!(mock_service.bound_params, Vec::<&str>::new());
+    }
+
+    #[tokio::test]
+    async fn error_when_cant_find_req_variable() {
+        let mut mock_service = ExecutionMockService::new(vec![vec![hashmap! {
+           "test".into() => "test".into()
+        }]]);
+
+        let request_variables = hashmap! {};
+
+        let endpoint_infos = vec![EndpointInfo {
+            name: "test".into(),
+            variables: vec!["req.test_key".into()],
+            parsed_sql: "".into(),
+            original_sql: "".into(),
+            children: vec![],
+        }];
+
+        let mut execution_runtime = EndpointExecutionRuntime::new(request_variables);
+
+        let result = execution_runtime
+            .execute(&mut mock_service, &endpoint_infos)
+            .await;
+
+        let error = result.unwrap_err();
+        assert_eq!(error.to_string(), "Request key test_key not found");
+    }
+
+    #[tokio::test]
+    async fn error_when_too_many_supers() {
+        let mut mock_service = ExecutionMockService::new(vec![vec![hashmap! {
+           "test".into() => "test".into()
+        }]]);
+
+        let request_variables = hashmap! {};
+
+        let endpoint_infos = vec![EndpointInfo {
+            name: "test".into(),
+            variables: vec!["super.test_key".into()],
+            parsed_sql: "should not be executed".into(),
+            original_sql: "".into(),
+            children: vec![],
+        }];
+
+        let mut execution_runtime = EndpointExecutionRuntime::new(request_variables);
+
+        let result = execution_runtime
+            .execute(&mut mock_service, &endpoint_infos)
+            .await;
+
+        let error = result.unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "Too many 'super.'s, reached negative index (super.test_key)"
+        );
+
+        // check that it didn't execute the query
+        assert_eq!(mock_service.called_queries, Vec::<&str>::new());
+    }
+
+    #[tokio::test]
+    async fn error_when_cant_find_super_variable() {
+        let mut mock_service = ExecutionMockService::new(vec![vec![hashmap! {
+           "test".into() => "test".into()
+        }]]);
+
+        let request_variables = hashmap! {};
+
+        let endpoint_infos = vec![EndpointInfo {
+            name: "test".into(),
+            variables: vec![],
+            parsed_sql: "Should be executed".into(),
+            original_sql: "".into(),
+
+            children: vec![EndpointInfo {
+                name: "test_inner".into(),
+                variables: vec!["super.key_that_doesnt_exist".into()],
+                parsed_sql: "Should not be executed".into(),
+                original_sql: "".into(),
+                children: vec![],
+            }],
+        }];
+
+        let mut execution_runtime = EndpointExecutionRuntime::new(request_variables);
+
+        let result = execution_runtime
+            .execute(&mut mock_service, &endpoint_infos)
+            .await;
+
+        let error = result.unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "Execution key super.key_that_doesnt_exist not found"
+        );
+
+        // check that it only executed the outer query
+        //
+        // in runtime the outer query will be reverted through a transaction
+        // after the inner query fails
+        assert_eq!(mock_service.called_queries, vec!["Should be executed"]);
+    }
+
+    #[tokio::test]
+    async fn request_variables_work() {
+        let mut mock_service = ExecutionMockService::new(vec![vec![hashmap! {
+           "test".into() => "test".into()
+        }]]);
+
+        let request_variables = hashmap! {
+            "age".to_owned() => "41".to_owned()
+        };
+
+        let endpoint_infos = vec![EndpointInfo {
+            name: "test".into(),
+            variables: vec!["req.age".into()],
+            parsed_sql: "select $1".into(),
+            original_sql: "".into(),
+            children: vec![],
+        }];
+
+        let mut execution_runtime = EndpointExecutionRuntime::new(request_variables);
+
+        let final_result = execution_runtime
+            .execute(&mut mock_service, &endpoint_infos)
+            .await
+            .unwrap();
+
+        assert_eq!(
+            final_result,
+            hashmap! {"test".into() => vec![ExecutionResult{
+                data: hashmap! {
+                    "test".into() => "test".into(),
+                },
+                children: hashmap! {}
+            }]}
+        );
+
+        assert_eq!(mock_service.called_queries, vec!["select $1".to_owned()]);
+        assert_eq!(mock_service.bound_params, vec!["41".to_owned()]);
+    }
+
+    #[tokio::test]
+    async fn super_variables_work() {
+        let mut mock_service = ExecutionMockService::new(vec![
+            vec![hashmap! {
+                "inner_test".into() => "child of test 2".into()
+            }],
+            vec![hashmap! {
+                "inner_test".into() => "child of test 1".into()
+            }],
+            vec![
+                hashmap! {
+                    "test".into() => "test 1".into()
+                },
+                hashmap! {
+                    "test".into() => "test 2".into()
+                },
+            ],
+        ]);
+
+        let request_variables = hashmap! {};
+
+        let endpoint_infos = vec![EndpointInfo {
+            name: "test".into(),
+            variables: vec![],
+            parsed_sql: "outer sql".into(),
+            original_sql: "".into(),
+
+            children: vec![EndpointInfo {
+                name: "test_inner".into(),
+                variables: vec!["super.test".into()],
+                parsed_sql: "inner sql".into(),
+                original_sql: "".into(),
+                children: vec![],
+            }],
+        }];
+
+        let mut execution_runtime = EndpointExecutionRuntime::new(request_variables);
+
+        let final_result = execution_runtime
+            .execute(&mut mock_service, &endpoint_infos)
+            .await
+            .unwrap();
+
+        assert_eq!(
+            final_result,
+            hashmap! {"test".into() => vec![
+                ExecutionResult{
+                    data: hashmap! {"test".into() => "test 1".into()},
+                    children: hashmap! {
+                        "test_inner".into() => vec![
+                            ExecutionResult {
+                                data: hashmap! {"inner_test".into() => "child of test 1".into()},
+                                children: hashmap! {},
+                            }
+                        ]
+                    }
+                },
+                ExecutionResult {
+                    data: hashmap! {"test".into() => "test 2".into()},
+                    children: hashmap! {
+                        "test_inner".into() => vec![
+                            ExecutionResult {
+                                data: hashmap! {"inner_test".into() => "child of test 2".into()},
+                                children: hashmap! {},
+                            }
+                        ]
+                    }
+                }
+            ]}
+        );
     }
 }
