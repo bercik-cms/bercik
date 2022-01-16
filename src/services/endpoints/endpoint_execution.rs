@@ -9,7 +9,6 @@ use anyhow::Result;
 use sqlx::PgPool;
 use std::collections::HashMap;
 
-#[cfg(not(test))]
 pub async fn execute_endpoint(
     db_pool: &PgPool,
     execution_info: EndpointExecutionInfo,

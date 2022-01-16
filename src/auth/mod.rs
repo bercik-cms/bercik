@@ -12,6 +12,10 @@ pub mod change_password;
 pub mod create_users;
 pub mod create_users_route;
 pub mod create_users_service;
+pub mod delete_user_route;
+pub mod delete_user_service;
+pub mod get_users_route;
+pub mod get_users_service;
 pub mod login_route;
 pub mod login_service;
 
@@ -32,6 +36,10 @@ impl Claims {
                 "User must be an admin".to_string(),
             ))
         }
+    }
+
+    pub fn user_group(&self) -> &str {
+        &self.user_group
     }
 }
 

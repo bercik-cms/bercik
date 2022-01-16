@@ -33,7 +33,6 @@ mod services;
 mod setup;
 mod types;
 
-#[cfg(not(test))]
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenv()?;
@@ -133,6 +132,14 @@ async fn main() -> anyhow::Result<()> {
         .route(
             "/api/create-users",
             post(auth::create_users_route::create_users),
+        )
+        .route(
+            "/api/delete-user",
+            post(auth::delete_user_route::delete_user_route),
+        )
+        .route(
+            "/api/users-info",
+            post(auth::get_users_route::get_users_route),
         )
         .layer(AddExtensionLayer::new(db_pool));
 

@@ -148,12 +148,12 @@ mod tests {
 
     #[test]
     fn bind_vec() {
-        let sql = "select ${name}, ${age}, ${food}, ${name}";
+        let sql = "select ${req.name}, ${req.age}, ${req.food}, ${req.name}";
 
         let mut data = HashMap::new();
-        data.insert("name".into(), "Adam".into());
-        data.insert("age".into(), "24".into());
-        data.insert("food".into(), "bigos".into());
+        data.insert("req.name".into(), "Adam".into());
+        data.insert("req.age".into(), "24".into());
+        data.insert("req.food".into(), "bigos".into());
 
         let result = SqlWithVariables::from_sql(sql)
             .unwrap()

@@ -73,8 +73,19 @@ impl EndpointExecutionRuntime {
         }
     }
 
-    #[async_recursion]
     pub async fn execute(
+        &mut self,
+        transaction: &mut Transaction<'_, Postgres>,
+        endpoint_infos: &Vec<EndpointInfo>,
+    ) -> Result<HashMap<String, Vec<ExecutionResult>>> {
+        #[cfg(not(test))]
+        return self.execute_impl(transaction, endpoint_infos).await;
+        #[cfg(test)]
+        panic!("Function should not be called in test configuration");
+    }
+
+    #[async_recursion]
+    pub async fn execute_impl(
         &mut self,
         #[cfg(test)] mock_exec_service: &mut ExecutionMockService,
         #[cfg(not(test))] transaction: &mut Transaction<'_, Postgres>,
@@ -113,9 +124,11 @@ impl EndpointExecutionRuntime {
                 self.push_execution_map(result);
 
                 #[cfg(test)]
-                let children_results = self.execute(mock_exec_service, &query.children).await?;
+                let children_results = self
+                    .execute_impl(mock_exec_service, &query.children)
+                    .await?;
                 #[cfg(not(test))]
-                let children_results = self.execute(transaction, &query.children).await?;
+                let children_results = self.execute_impl(transaction, &query.children).await?;
 
                 let mut result_map = self
                     .pop_execution_map()
@@ -198,7 +211,7 @@ mod test {
         let mut execution_runtime = EndpointExecutionRuntime::new(request_variables);
 
         let final_result = execution_runtime
-            .execute(&mut mock_service, &endpoint_infos)
+            .execute_impl(&mut mock_service, &endpoint_infos)
             .await
             .unwrap();
 
@@ -238,7 +251,7 @@ mod test {
         let mut execution_runtime = EndpointExecutionRuntime::new(request_variables);
 
         let result = execution_runtime
-            .execute(&mut mock_service, &endpoint_infos)
+            .execute_impl(&mut mock_service, &endpoint_infos)
             .await;
 
         let error = result.unwrap_err();
@@ -264,7 +277,7 @@ mod test {
         let mut execution_runtime = EndpointExecutionRuntime::new(request_variables);
 
         let result = execution_runtime
-            .execute(&mut mock_service, &endpoint_infos)
+            .execute_impl(&mut mock_service, &endpoint_infos)
             .await;
 
         let error = result.unwrap_err();
@@ -303,7 +316,7 @@ mod test {
         let mut execution_runtime = EndpointExecutionRuntime::new(request_variables);
 
         let result = execution_runtime
-            .execute(&mut mock_service, &endpoint_infos)
+            .execute_impl(&mut mock_service, &endpoint_infos)
             .await;
 
         let error = result.unwrap_err();
@@ -340,7 +353,7 @@ mod test {
         let mut execution_runtime = EndpointExecutionRuntime::new(request_variables);
 
         let final_result = execution_runtime
-            .execute(&mut mock_service, &endpoint_infos)
+            .execute_impl(&mut mock_service, &endpoint_infos)
             .await
             .unwrap();
 
@@ -397,7 +410,7 @@ mod test {
         let mut execution_runtime = EndpointExecutionRuntime::new(request_variables);
 
         let final_result = execution_runtime
-            .execute(&mut mock_service, &endpoint_infos)
+            .execute_impl(&mut mock_service, &endpoint_infos)
             .await
             .unwrap();
 

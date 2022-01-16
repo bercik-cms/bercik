@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 
 use super::endpoint_crud::CreateEndpointRequest;
-use crate::algorithms::sql_variable_parser::EndpointInfo;
 use crate::err_utils::to_internal;
+use crate::services::endpoints::endpoint_test::test_endpoint as test_endpoint_service;
+use crate::{algorithms::sql_variable_parser::EndpointInfo, auth::Claims};
 use axum::{
     body::HttpBody,
     extract::{Extension, Json},
@@ -10,9 +11,6 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
-
-#[cfg(not(test))]
-use crate::services::endpoints::endpoint_test::test_endpoint as test_endpoint_service;
 
 #[derive(Serialize)]
 pub struct EndpointTestResult {
@@ -26,11 +24,13 @@ pub struct EndpointTestRequest {
     pub req_variables: HashMap<String, String>,
 }
 
-#[cfg(not(test))]
 pub async fn endpoint_test(
+    claims: Claims,
     Json(req): Json<super::endpoint_test::EndpointTestRequest>,
     Extension(db_pool): Extension<PgPool>,
-) -> Json<EndpointTestResult> {
+) -> Result<Json<EndpointTestResult>, (StatusCode, String)> {
+    claims.must_be_admin()?;
+
     let parsed_endpoints_result = req
         .create_req
         .endpoints_info
@@ -39,10 +39,10 @@ pub async fn endpoint_test(
         .collect::<anyhow::Result<Vec<EndpointInfo>>>();
 
     if let Err(err) = parsed_endpoints_result {
-        return Json(EndpointTestResult {
+        return Ok(Json(EndpointTestResult {
             ok: false,
             msg: format!("{}", err),
-        });
+        }));
     }
 
     let result = test_endpoint_service(
@@ -53,13 +53,13 @@ pub async fn endpoint_test(
     .await;
 
     match result {
-        Ok(result) => Json(EndpointTestResult {
+        Ok(result) => Ok(Json(EndpointTestResult {
             ok: true,
             msg: serde_json::to_string_pretty(&result).unwrap(),
-        }),
-        Err(err) => Json(EndpointTestResult {
+        })),
+        Err(err) => Ok(Json(EndpointTestResult {
             ok: false,
             msg: format!("{}", err),
-        }),
+        })),
     }
 }
